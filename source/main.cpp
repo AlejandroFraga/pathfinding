@@ -39,7 +39,7 @@ int main()
 
     // Init the A* with the board of A* nodes
     AStar aStar(board);
-    aStar.init(Heuristic::Manhattan);
+    aStar.init(Heuristic::Manhattan, true, true);
 
 #ifndef _DEBUG
     // We create this scope to make the timer call its destructor
