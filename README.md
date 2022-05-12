@@ -1,6 +1,6 @@
-# PathFinding
+# Pathfinding
 
-Implementation of different Pathfinding algorithms such as A*
+Implementation of different pathfinding algorithms such as A*
 
 ## Console Output
 
