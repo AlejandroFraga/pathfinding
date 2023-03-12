@@ -37,7 +37,7 @@ namespace Benchmark {
             auto duration = stop - start;
             double ms = duration * 0.001;
 
-            std::cout << "Timer(" << m_title << "): " << duration << "us (" << ms << "ms)" << std::endl;
+            std::cout << "Timer: " << duration << "us (" << ms << "ms)" << std::endl;
         }
     };
 }

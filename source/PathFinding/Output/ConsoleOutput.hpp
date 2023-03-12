@@ -1,9 +1,10 @@
-﻿#ifndef CONSOLE_OUTPUT_H
+#ifndef CONSOLE_OUTPUT_H
 #define CONSOLE_OUTPUT_H
 #pragma once
 
 #include <iostream>
-#include "AStar.h"
+#include "../Algorithms/AlgorithmBase.hpp"
+#include "../Board.hpp"
 
 
 namespace PathFinding
@@ -23,6 +24,31 @@ namespace PathFinding
 
 	enum class Char : char
 	{
+        // Support for MacOS terminal
+#if __APPLE__
+        Space = 32,
+        Slash = 47,
+        Zero = 48,
+        Less = 60,
+        Greater = 62,
+        Start = 65,
+        Goal = 66,
+        Backslash = 92,
+        Caret = 94,
+        LowercaseV = 118,
+        Vertical = 124,
+        VerticalLeft = 43,
+        UpperRight = 43,
+        LowerLeft = 43,
+        HorizontalUp = 43,
+        HorizontalDown = 43,
+        VerticalRight = 43,
+        Horizontal = 45,
+        Cross = 43,
+        LowerRight = 43,
+        UpperLeft = 43,
+        Block = 35
+#else
 		Space = 32,
 		Slash = 47,
 		Zero = 48,
@@ -45,29 +71,39 @@ namespace PathFinding
 		LowerRight = 217,
 		UpperLeft = 218,
 		Block = 219
+#endif
 	};
 
 	class ConsoleOutput
 	{
 	private:
-		// Works better with odd numbers
+		/// Works better with odd numbers
 		static const size_t m_nodeChars = 3;
 
 	public:
-		static void Print(const AStar& aStar, const bool& clear = true, const bool& enterToContinue = false)
+		static void Print(const AlgorithmBase& algorithm, const bool& clear = true, const bool& enterToContinue = false)
 		{
-			std::cout << (aStar.solution.size() ? "Solution: " : "No solution: ") << std::endl;
+            std::cout << "Algorithm: " << algorithm.name << std::endl;
+            std::cout << "Nodes opened: " << algorithm.nodesOpened << " - Nodes closed: " << algorithm.nodesClosed << std::endl;
+            if (algorithm.solution.size())
+            {
+                std::cout << "Solution (distance: " << algorithm.getSolutionDistance() << "):" << std::endl;
+            }
+            else
+            {
+                std::cout << "No solution:" << std::endl;
+            }
 
-			// Calculate the max coordinate of the board
-			const Coordinate max(aStar.board.max.first * (m_nodeChars + 1) + 1, aStar.board.max.second * (m_nodeChars + 1) + 1);
+			// Calculate the size by axis of the board
+			const Coordinate size(algorithm.getSize().first * (m_nodeChars + 1) + 1, algorithm.getSize().second * (m_nodeChars + 1) + 1);
 
 			// Stores the total position of the std::cout
 			Coordinate i;
-			for (i.second = 0; i.second < max.second; ++i.second)
+			for (i.second = 0; i.second < size.second; ++i.second)
 			{
-				for (i.first = 0; i.first < max.first; ++i.first)
+				for (i.first = 0; i.first < size.first; ++i.first)
 				{
-					std::cout << (char)getRepresentation(aStar, max, i);
+					std::cout << getRepresentation(algorithm, size, i);
 				}
 				std::cout << std::endl;
 			}
@@ -76,10 +112,15 @@ namespace PathFinding
 				EnterToContinue(clear);
 		}
 
-		static void ClearScreen() { system("CLS"); }
+		static void ClearScreen()
+        {
+#ifndef __APPLE__
+            system("CLS");
+#endif
+        }
 
-	private:
-		static char getRepresentation(const AStar& aStar, const Coordinate& max, const Coordinate& coutPos)
+    private:
+		static char getRepresentation(const AlgorithmBase& algorithm, const Coordinate& size, const Coordinate& coutPos)
 		{
 			// Actual node position of the board
 			Coordinate boardPos{ coutPos.first / (m_nodeChars + 1), coutPos.second / (m_nodeChars + 1) };
@@ -88,19 +129,19 @@ namespace PathFinding
 			const Coordinate nodeC{ coutPos.first % (m_nodeChars + 1) - 1, coutPos.second % (m_nodeChars + 1) - 1 };
 
 			// Try get if it's a border or a main element to represent
-			auto nextChar = getBorder(coutPos, max);
-			nextChar = nextChar == Char::Space ? getMain(aStar.board, boardPos, nodeC) : nextChar;
+			auto nextChar = getBorder(coutPos, size);
+			nextChar = nextChar == Char::Space ? getMain(algorithm, boardPos, nodeC) : nextChar;
 
 			// If a solution is passed, print the solution. If not, print the value of the node
-			if (aStar.solution.size())
-				return nextChar == Char::Space ? (char)getSolutionPath(aStar.solution, boardPos, nodeC) : (char)nextChar;
+			if (algorithm.solution.size())
+				return nextChar == Char::Space ? (char)getSolutionPath(algorithm.solution, boardPos, nodeC) : (char)nextChar;
 			else
-				return nextChar == Char::Space ? getNodeValue(aStar.board[boardPos], nodeC) : (char)nextChar;
+				return nextChar == Char::Space ? getNodeValue(algorithm.getValue1(boardPos), algorithm.getValue2(boardPos), nodeC) : (char)nextChar;
 
 			return (char)nextChar;
 		}
 
-		static Char getBorder(const Coordinate& globalC, const Coordinate& max)
+		static Char getBorder(const Coordinate& globalC, const Coordinate& size)
 		{
 			const bool oddColumn = globalC.first % (m_nodeChars + 1);
 			const bool oddRow = globalC.second % (m_nodeChars + 1);
@@ -110,15 +151,15 @@ namespace PathFinding
 				return Char::UpperLeft;
 
 			// Upper right corner
-			else if (globalC.first == max.first - 1 && globalC.second == 0)
+			else if (globalC.first == size.first - 1 && globalC.second == 0)
 				return Char::UpperRight;
 
 			// Lower left corner
-			else if (globalC.first == 0 && globalC.second == max.second - 1)
+			else if (globalC.first == 0 && globalC.second == size.second - 1)
 				return Char::LowerLeft;
 
 			// Lower right corner
-			else if (globalC.first == max.first - 1 && globalC.second == max.second - 1)
+			else if (globalC.first == size.first - 1 && globalC.second == size.second - 1)
 				return Char::LowerRight;
 
 			// Upper border even
@@ -138,19 +179,19 @@ namespace PathFinding
 				return Char::Vertical;
 
 			// Lower border even
-			else if (globalC.second == max.second - 1 && !oddColumn)
+			else if (globalC.second == size.second - 1 && !oddColumn)
 				return Char::HorizontalUp;
 
 			// Lower border odd
-			else if (globalC.second == max.second - 1 && oddColumn)
+			else if (globalC.second == size.second - 1 && oddColumn)
 				return Char::Horizontal;
 
 			// Right border even
-			else if (globalC.first == max.first - 1 && !oddRow)
+			else if (globalC.first == size.first - 1 && !oddRow)
 				return Char::VerticalLeft;
 
 			// Right border odd
-			else if (globalC.first == max.first - 1 && oddRow)
+			else if (globalC.first == size.first - 1 && oddRow)
 				return Char::Vertical;
 
 			// Inner horizontals
@@ -167,20 +208,19 @@ namespace PathFinding
 
 			return Char::Space;
 		}
-
-		template <Derived<NodeBase>T>
-		static Char getMain(const Board<T>& board, const Coordinate& localC, const Coordinate& nodeC)
+        
+		static Char getMain(const AlgorithmBase& algorithm, const Coordinate& localC, const Coordinate& nodeC)
 		{
 			// Obstacles
-			if (board.validNode(localC) && board[localC].obstacle)
+			if (algorithm.isObstacle(localC))
 				return Char::Block;
 
 			// Start
-			else if (localC == board.start && nodeC.first == m_nodeChars / 2 && nodeC.first == nodeC.second)
+			else if (localC == algorithm.getStart() && nodeC.first == m_nodeChars / 2 && nodeC.first == nodeC.second)
 				return Char::Start;
 
 			// Goal
-			else if (localC == board.goal && nodeC.first == m_nodeChars / 2 && nodeC.first == nodeC.second)
+			else if (localC == algorithm.getGoal() && nodeC.first == m_nodeChars / 2 && nodeC.first == nodeC.second)
 				return Char::Goal;
 
 			return Char::Space;
@@ -194,7 +234,15 @@ namespace PathFinding
 			const bool tlDiagonal = nodeC.first == nodeC.second;					// Top left to bottom right diagonal
 			const bool blDiagonal = nodeC.first == m_nodeChars - 1 - nodeC.second;	// Bottom left to top right diagonal
 
-			const auto resultIndex = Utils::coordinate(solution, localC);
+			auto resultIndex = solution.size();
+            
+            for (size_t i = 0; i < solution.size(); ++i)
+            {
+                if (localC == solution[i])
+                {
+                    resultIndex = i;
+                }
+            }
 
 			// Solution path
 			if (resultIndex && resultIndex < solution.size() - 1)
@@ -207,7 +255,6 @@ namespace PathFinding
 
 				auto relBefore = getRelPos(diffBefore);
 				auto relAfter = getRelPos(diffAfter);
-				auto relInt = 0;
 
 				if (((relBefore == RelPos::NorthWest || relAfter == RelPos::NorthWest) && nodeC.second < halfNodeChars && tlDiagonal)
 					|| ((relBefore == RelPos::SouthEast || relAfter == RelPos::SouthEast) && nodeC.second > halfNodeChars && tlDiagonal))
@@ -349,29 +396,37 @@ namespace PathFinding
 
 			return RelPos::Same;
 		}
-
-		static char getNodeValue(const AStar::Node & node, const Coordinate& NodeC)
+        
+        //TODO: Improve
+		static char getNodeValue(double value1, double value2, const Coordinate& NodeC)
 		{
+            if (value1 == 0.f && value2 == 0.f)
+            {
+                return (int)Char::Space;
+            }
+            
 			auto units = (int)std::pow(10, m_nodeChars - 1 - NodeC.first);
 
 			// Regular nodes -> h X value
-			if (NodeC.second == 0 && node.h < 999)
+			if (NodeC.second == 0 && value1 <= 999)
 			{
 				if (NodeC.first == m_nodeChars - 1)
-					return (int)Char::Zero + ((int)node.h % 10);
+                    return ((int)Char::Zero + ((int)value1 % 10));
 				else
-					return (int)Char::Zero + ((int)node.h % (units * 10) - (int)node.h % units) / units;
+                    return ((int)Char::Zero + ((int)value1 % (units * 10) - (int)value1 % units) / units);
 			}
-			else if (NodeC.second == m_nodeChars - 1 && node.g > 0)
-				if (NodeC.first == m_nodeChars - 1)
-					return (int)Char::Zero + (int)node.g % 10;
-				else
-					return (int)Char::Zero + ((int)node.g % (units * 10) - (int)node.g % units) / units;
+            else if (NodeC.second == m_nodeChars - 1 && value2 > 0)
+            {
+                if (NodeC.first == m_nodeChars - 1)
+                    return ((int)Char::Zero + (int)value2 % 10);
+                else
+                    return ((int)Char::Zero + ((int)value2 % (units * 10) - (int)value2 % units) / units);
+            }
 
-			return -1;
+			return (int)Char::Space;
 		}
 
-		static void EnterToContinue(const bool& clear = false)
+		static void EnterToContinue(bool clear = false)
 		{
 			std::cout << "Press enter to continue...";
 			std::cin.get();
