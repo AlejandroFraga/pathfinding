@@ -1,9 +1,5 @@
-# Visual Studio user specific files
-.vs/
-
-# Visual Studio files
-*.sln
-*.vcxproj*
+# IntelliJ
+.idea
 
 # Builds
 x64/*
